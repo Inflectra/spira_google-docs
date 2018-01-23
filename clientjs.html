@@ -1,0 +1,311 @@
+<script>
+//global 
+//user object to save input data
+var user= {};
+
+/*
+ *
+ * =================================
+ * UTILITIES & CROSS PANEL FUNCTIONS
+ * =================================
+ *
+ */
+ //DEV mode- login type isn't required
+let devMode = true;
+// on init make sure to run any required startup functions
+(function () {
+    // for dev mode only - comment out or set to false to disable any UI dev features
+    setDevStuff(devMode);
+})();
+// if devmode enabled, set the required fields and show the dev button
+function setDevStuff (devMode) {
+    if (devMode) {
+        user.url = "https://demo.spiraservice.net/jlee";
+        user.userName = "fredbloggs";
+        user.api_key = "{7A05FD06-83C3-4436-B37F-51BCF0060483}";
+    }
+}
+
+// used to show or hide / hide / show a specific panel
+// @param: panel - string. suffix for items to act on (eg if id = panel-help, choice = "help")
+function panelToggle (panel) {
+    panelId = "#panel-" + panel;
+    $(panelId).toggleClass("offscreen");
+}
+function hidePanel (panel) {
+    panelId = "#panel-" + panel;
+    $(panelId).addClass("offscreen");
+}
+function showPanel (panel) {
+    panelId = "#panel-" + panel;
+    $(panelId).removeClass("offscreen");
+}
+// manage the loading spinner
+function showLoadingSpinner () {
+    $('#loader').removeClass('hidden');
+}
+function hideLoadingSpinner () {
+    $('#loader').addClass('hidden');
+}
+
+// adds all options to a dropdown
+// @param: selectId - is the id of the dom select element
+// @param: array - the array of objects (with id, name, and optionally a disabled value, and hidden bool)
+// @param: firstMessage - an optional text field to go at the top of the array - the initial choice 
+function setDropdown (selectId, array, firstMessage) {
+    // first make a deep copy of the array to stop any funny business
+  var arrayCopy = JSON.parse(JSON.stringify(array)),
+      $element = $("#" + selectId);
+// if passed in, add default "select" option to top of project array
+    if(firstMessage) arrayCopy.unshift({
+        id: 0, 
+        name: firstMessage
+    });
+    // clear the dropdown
+    $element.html('');
+    var options = arrayCopy.map(function(item) {
+      var disabledText = item.disabled ? " disabled='true'" : "",
+          option = "<option value=" + item.id + disabledText + ">" + item.name + "</option>"
+        return !item.hidden ? option : null;
+    }).join("");
+// add all options to the dropdown
+ $element.append(options);
+}
+
+
+
+
+/*
+ *
+ * ============
+ * LOGIN SCREEN
+ * ============
+ *
+ */
+// get user data from input fields and store in user data object
+// adds the 'api-key' text before the key to make creating the urls simpler
+function getAuthDetails () {
+    user.url = $("#input-url").val();
+    user.userName = $("#input-userName").val();
+    user.api_key = btoa("&api-key=" + encodeURIComponent($("#input-password").val()));
+    user.apiKey = btoa(encodeURIComponent($("#input-password").val())); 
+}
+// fill in mock values for easy log in development, enable dev button
+function setAuthDetails () {
+    $('#input-url').val(user.url);
+    $('#input-userName').val(user.userName);
+    $('#input-password').val(user.api_key);
+}
+// handle the click of the login button
+//grabs authentication details and submits to server function for API call
+function loginAttempt () {
+    getAuthDetails();
+    login();
+}
+// login function that starts the intial data creation
+function login() {    
+    showLoadingSpinner();
+    // call server side function to get projects
+    // also serves as authentication check, if the user credentials aren't correct it will throw a network error
+    google.script.run
+        .withSuccessHandler(populateProjects)
+        .withFailureHandler(errorNetwork)
+        .getProjects(user);
+}
+// kick off prepping and showing main panel
+// @param: projects - passed in projects data returned from the server following successful API call to Spira
+function populateProjects (projects) {
+    // take projects data from Spira API call, strip out unwanted fields, add to data model
+   let pairedDownProjectsData = projects.map(function(project) {
+      let result = {
+          id: project.ProjectId,
+          name: project.Name
+        };
+      return result;
+    });
+ 
+// now add paired down project array to data store
+   user.projects = pairedDownProjectsData;
+// get UI logic ready for main panel
+  showMainPanel();
+}
+
+
+
+
+/*
+ *
+ * ===========
+ * MAIN SCREEN
+ * ===========
+ *
+ */
+ 
+// manage the switching of the UI off the login screen on succesful login and retrieval of projects
+function showMainPanel () {
+    // displays the current logged in user name
+    $('#js--loggedInAs').html('Logged in as: ' + user.userName);
+    setDropdown("select-project", user.projects, "Select a project");
+    showPanel("main");
+    hideLoadingSpinner();
+}
+
+
+
+/*
+ * 
+ * ==============
+ * POSTING FUNCTIONS
+ * ==============
+ *
+ */
+//collect data from document to send to Spira 
+//save data as objects within an array
+function sendToSpiraAttempt(){
+  google.script.run
+        .withSuccessHandler(sendArtifactToSpira)
+        .createArtifactObjectArray();
+};
+     
+function sendArtifactToSpira (output) {
+//selectedProject is the index of the selected project (in projects dropdown) that the user would like to send the requirements to
+  var selectedProject = document.getElementById("select-project").selectedIndex;
+//if user does not select a project before sending to Spira, an error message will occur (function will not run)
+if (selectedProject=== 0) {
+        google.script.run 
+        .okWarn('Please select a project');
+        return;
+ }
+  showLoadingSpinner();
+
+//postAllArtifactsToSpira -server side function will make a post request to Spira
+//@param: user- global variable containing user input information
+//@param: output- array of data objects from previous createArtifactObjectArray() function
+//@param: selectedProject- variable containing the index number of the project user has selected
+//if function is interrupted, error message will occur
+   google.script.run 
+     .withFailureHandler(postAttemptError)
+     .withSuccessHandler(postResponse)
+     .postAllArtifactsToSpira(user,output,selectedProject);
+} 
+function postAttemptError () {
+ hideLoadingSpinner();
+}
+
+
+//response is returned from server-side postAllArtifactsToSpira function
+function postResponse (response) {
+  if (response === "Cancelled") {
+    hideLoadingSpinner();
+    return;
+   }
+  if (response === "CHANGE HEADING") {
+    hideLoadingSpinner();
+    return;
+   }
+  if (response === "Close Button Clicked") {
+    hideLoadingSpinner();
+    return;
+   }
+  if (response === "Authentication failed") {
+    hideLoadingSpinner();
+    return;
+   }
+ hideLoadingSpinner();
+ google.script.run
+     .withFailureHandler(errorImpExp)
+     .withSuccessHandler(finalConsole)
+     .okWarn('Requirements have been successfully posted!');
+   return;     
+}
+
+function finalConsole() {
+  console.log("POST WORKED");
+}
+
+
+
+
+
+
+
+/*
+ * 
+ * ==============
+ * LOGOUT FUNCTION
+ * ==============
+ *
+ */
+// run server side code to manage logout
+function logoutAttempt () {
+//warns user that they will be logged out- Yes or No buttons --> returns a true/false value
+   google.script.run
+       .withSuccessHandler(logout)
+       .warn('You will be logged out. Continue?');
+}
+// @param: shouldLogout - a true or false value from google
+function logout (shouldLogout) {
+   if (shouldLogout) {
+   resetSidebar();
+   }
+}
+// resets the sidebar following logout
+function resetSidebar () {
+// clear input field values
+    $('#input-url, #input-userName, #input-password').val('');
+// hide other panels, so login page is visible
+    $(".panel:not(#panel-auth)").addClass("offscreen");
+}
+
+
+
+
+/*
+ *
+ * ===========
+ * HELP SCREEN
+ * ===========
+ *
+ */
+// manage showing the correct help section to the user
+// @param: choice - string. suffix for items to select (eg if id = help-section-fields, choice = "fields")
+function showChosenHelpSection (choice) {
+// hide all sections and then only show the one the user wants
+    $(".help-section").addClass("hidden");
+    $("#help-section-" + choice).removeClass("hidden");
+    
+// set all buttons back to normal, then highlight one just clicked
+    $(".btn-help").removeClass("create");
+    $("#btn-help-" + choice).addClass("create");
+}
+
+
+
+
+
+/*
+ * 
+ * ==============
+ * ERROR HANDLING
+ * ==============
+ *
+ * These call a popup using google server side code
+ * most args are the HTTPResponse objects from the `withFailureHandler` promise
+ *
+ */
+function errorPopUp(err, type) {
+    google.script.run.error(type);
+    hideLoadingSpinner();
+    console.log(err);
+}
+function errorNetwork(err) {
+    errorPopUp(err);
+}
+function errorImpExp(err) {
+    errorPopUp(err, 'impExp');
+}
+function errorUnknown(err) {
+    errorPopUp(err, 'unknown');
+}
+
+</script>
