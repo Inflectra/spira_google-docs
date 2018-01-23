@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+        <?!= include('styles'); ?>
+</head>
+
+
+<body>
+  <header class="header">
+        <img src="https://files.inflectra.com/google/sheets/spira_icon.png" class="header-logo">
+        <h3 class="header-heading">SpiraTeam Document Import </h3>
+  </header>
+    
+    
+<!--LOGIN/AUTHENTCATION PAGE-->
+    <div class="panel" id="panel-auth">
+        <p>Please enter the information used to access your server.</p>
+        
+        <ul class="form">
+          <li class="form-pair">
+            <label 
+                class="form-label" 
+                for="input-url"
+                >
+                Spira URL:
+            </label>
+            <input 
+                class="form-input" 
+                id="input-url" 
+                name="URL" 
+                placeholder="https://<your-site-name>.com" 
+                type="text" 
+                />
+          </li>
+          <li class="form-pair">
+            <label 
+                class="form-label"
+                for="input-userName"
+                >
+                User Name:
+            </label>
+            <input 
+                class="form-input" 
+                id="input-userName" 
+                name="user-name" 
+                placeholder="User Name" 
+                type="text" 
+                />
+          </li>
+          <li class="form-pair">
+            <label
+                class="form-label"
+                for="input-password"
+                >
+                RSS Token:
+            </label>
+            <input 
+                class="form-input" 
+                id="input-password" 
+                name="password" 
+                placeholder="{Your-RSS-Token}" 
+                type="password" 
+                />
+          </li>
+        </ul> <!--end of form class-->
+        
+        <p class="secondary">
+            The RSS token can be generated from your 'My Profile' screen inside SpiraTeam. For further assistance contact your system administrator
+        </p>
+        
+        <div class="mt-md">
+            <button 
+                class="action" 
+               onclick="loginAttempt()"
+                title="Login using details filled out above"
+                type="button"
+                >
+                Log In
+            </button>
+            <button 
+                onclick="panelToggle('help')"
+                title="View help screens"
+                type="button"
+                >
+                Help
+            </button>
+            <!-- Dev mock login data button. For developement only -->  
+            <button
+                id="btn-dev"
+                onclick="setAuthDetails()"
+                title="Click to load login screen with dev details"
+                type="button"
+                >
+                Dev
+            </button> 
+        </div><!--end of mt-md-->
+    </div> <!--end of panel auth div--> 
+
+
+
+
+
+<!--MAIN SCREEN-->
+    <div class="panel offscreen" id="panel-main">
+        <p 
+            class="secondary" 
+            id="js--loggedInAs"
+            >
+        </p>
+        
+        <div class="btn-group pb-lg">
+            <button 
+                id="btn-help-main"
+                onclick="panelToggle('help')"
+                title="View help screen"
+                type="button"
+                >
+                Help
+            </button>
+            <button 
+                onclick="logoutAttempt()"
+                title="Logout of addon"
+                type="button"
+                >
+                Logout
+            </button>
+        </div> <!--end of btn-group div-->
+     
+        <ul class="form">      
+          <li class="form-pair">
+            <label 
+                class="form-label" 
+                for="select-project"
+                >
+                Projects:
+            </label>
+            <select 
+                class="form-input"
+                id="select-project"
+                >
+                <!--aysnc populated -->
+            </select>
+          </li>
+          <li class="form-pair">
+            <label 
+                class="form-label" 
+                for="select-artifact"
+                >
+                Artifact:
+            </label>
+            <select 
+                class="form-input"
+               
+                id="select-artifact" 
+                > 
+                  <option value="requirements">Requirements</option>
+                <!--aysnc populated -->
+                <!--disabled="true" --> 
+            </select>
+            </li>
+            </ul>  <!--end of form ul-->
+            <!--</label>-->
+        
+        
+        <div class="pt-lg">
+            <div style="display: none" id="template-data-box">
+                <p>
+                    The template is currently configured to: 
+                    <span id="template-project"></span>, <span id="template-artifact"></span>.
+                </p>
+            </div> <!--end of template-data-box-->
+            <button
+                id="btn-toSpira" 
+                onclick="sendToSpiraAttempt()"
+                type="button"
+                >
+                Send to SpiraTeam
+            </button>
+        </div><!--end of pt-lg class-->
+        
+    </div> <!--end of panel-main div-->
+    
+    
+
+<!--HELP PAGE-->
+    <div class="panel offscreen" id="panel-help">
+        <!-- help button and module for help page -->
+        <button 
+            onclick="panelToggle('help')"
+            type="button"
+            >
+            Back
+        </button>
+        
+        <h3>Quick Help Guide</h3>
+        
+        <div class="flex" id='help-header'>
+            <button 
+                class="btn-help"
+                id="btn-help-login"
+                onclick="showChosenHelpSection('login')"
+                title="Help with the login screen"
+                type="button"
+                >
+                LOGIN
+            </button>
+            <button 
+                class="btn-help"
+                id="btn-help-actions"
+                onclick="showChosenHelpSection('actions')"
+                title="Help with creating and loading a template onto the spreadsheet"
+                type="button"
+                >
+                DOCUMENT
+            </button>
+            <button 
+                class="btn-help"
+                id="btn-help-fields"
+                onclick="showChosenHelpSection('fields')"
+                title="View help for specific fields and artifacts"
+                type="button"
+                >
+                FORMAT
+            </button>
+        </div>
+
+        <div id="help-section-login" class="help-section hidden">
+            <h4>Logging into SpiraTeam</h4>
+            <ol class="list">
+                <li>
+                    <p>
+                        <b>Enter your SpiraTeam URL</b>
+                        <small>Please enter the web address that you use to access SpiraTeam® in your browser. This is usually of the form 'http://(hostname)/SpiraTeam'. Make sure that you remove any suffixes from the address (e.g. Default.aspx)</small>
+                    </p>
+                </li>
+                <li>
+                    <p><b>Enter your user name</b></p>
+                    <small>
+                        Please enter the user name you use to log in to SpiraTeam. (Not Case Sensitive)
+                    </small>
+                </li>
+                <li>
+                    <p><b>Enter your RSS token</b></p>
+                    <small> Please enter your RSS token including the curly braces i.e {ExampleRSS}</small>
+                </li>
+            </ol>
+        </div>
+        
+        
+        
+        
+        <div id="help-section-actions" class="help-section hidden">
+            <h4>Actions</h4>
+            <ul class="list">
+                <li>
+                    <p>
+                        <b>Help</b>
+                        <small>This button will open an in app help menu with basic functionality information.</small>
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <b>Logout</b>
+                        <small>This button will close your connection with SpiraTeam </small>
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <b>Projects</b>
+                        <small>Select a project from the menu.</small>
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <b>Send to SpiraTeam</b>
+                        <small>This button will send your properly formatted data to SpiraTeam and it will be added to the current project.</small>
+                    </p>
+                </li>
+                <li>
+                    <p>
+                        <b>Import to SpiraTeam</b>
+                        <small><em>Not Currently Supported</em></small>
+                    </p>
+                </li>
+            </ul>
+        </div>
+        
+        
+        
+        
+        <div id="help-section-fields" class="help-section hidden">
+            <h4>Document Format</h4>
+            <ul class="list">
+                <li>
+                    <p>
+                        <b>Name</b>
+                        <br>Name field of the requirement (Requires Heading Style format)
+                        <small>
+                        <br>
+                        Format > Paragraph Styles > Heading ___ 
+                        <br> 
+                        <br>
+                        <b>Note:</b> Title and Subtitle are not supported
+                        </small>
+                        <br>
+                        <small><b>Note:</b> Special characters will be translated due to security reasons by Google Docs</small>  
+ 
+                    </p>
+                    
+                    
+                    
+                    <div class="indentation-description">
+                    <b>Indentation Levels</b>
+                    <br> 
+                    <small>Heading Style levels will determine the level of indentation that the requirement will have within the Spirateam requirement list </small>
+                
+                    <br>
+                    <small><p><b>Note:</b> The first requirement sent must have a Heading 1 style, as this will set the indentation levels </p></small>
+                    <small><p>Heading styles of greater value will always indent to the right, while heading styles of lesser value will be indented to the left (formatting will be as close to the heading style indentation as possible )</p></small>
+                    <br>Example:
+                    <br>Heading 1
+                    <p> >Heading 2</p>
+                    <p>    >>Heading 3</p>
+                    <br>
+                    <small><p>To keep the same indentation level, the same heading style may be applied to the relevant requirements </p></small>
+                    <p>Example:</p>
+                    <p>Heading 1</p>
+                    <p> >Heading 2 </p>
+                    <p> >Heading 2 </p>
+                    <br>
+                    <small><p>The Add-In will attempt to match the formatted used in the Google document. However because of some differences between Google Docs and HTML, it may not be exact.</p></small>
+                    <p>Example:</p>
+                    <p>Heading 1</p>
+                    <p> >Heading 4</p>
+                    <p>  >>Heading 6</p>
+                    <p> >Heading 2</p>
+                    <br> 
+
+                    </div>
+                   
+                </li>
+                   <li>
+                         <b>Description</b>
+                         <br>
+                         Any text located between the selected styles will be loaded into the Description field of the requirement
+                        <br> 
+                        <br>
+                        <small><b>Note:</b>Images, Bold, italic, underline, and colored formatting is currently unable to be imported to Spirateam </small>
+                        </li>
+                <li>
+                    <p>
+                        <b>Comments</b>
+                        <small><em>Not Currently Supported</em></small>
+                    </p>
+                </li>
+            </ul>
+        </div><!--end of help-section hidden-->
+    </div><!--end of help page -->
+    
+    
+
+<!-- FOOTER -->  
+    <footer class="footer">
+        <a href="https://www.inflectra.com" target="_blank">
+            <img src="https://files.inflectra.com/google/sheets/by_inflectra.png"  class="footer-logo">
+        </a>
+    </footer>
+    
+    
+<!--SPINNER -->
+    <div id='loader' class='loader-box hidden'>
+        <div class="loader"></div>
+    </div>
+ 
+<!--JQUERY-->
+    <script src="https://code.jquery.com/jquery-3.1.1.slim.min.js" integrity="sha256-/SIrNqv8h6QGKDuNoLGA4iret+kyesCkHGzVUUV0shc=" crossorigin="anonymous"></script>    
+        <?!= include('clientjs'); ?>
+   <script>
+      
+    </script>
+
+</body>
+</html>
+
+
